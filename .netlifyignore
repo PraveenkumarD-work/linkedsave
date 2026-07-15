@@ -1,0 +1,4 @@
+node_modules
+.next
+mcp-server/node_modules
+mcp-server/dist
