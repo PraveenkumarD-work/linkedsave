@@ -7,11 +7,13 @@ import type { AuthState } from "@/app/auth/actions";
 export function AuthForm({
   mode,
   action,
+  initialError,
 }: {
   mode: "login" | "signup";
   action: (state: AuthState, formData: FormData) => Promise<AuthState>;
+  initialError?: string;
 }) {
-  const [state, formAction, pending] = useActionState(action, {});
+  const [state, formAction, pending] = useActionState(action, { error: initialError });
 
   return (
     <div className="mx-auto flex w-full max-w-sm flex-col justify-center">
