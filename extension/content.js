@@ -83,39 +83,59 @@ function scrapeVisiblePosts() {
   return { posts, skipped };
 }
 
+// Finds the most likely "list of post cards" by looking for a group of
+// sibling elements (same tag + first class) repeated roughly as many times
+// as the page title says there should be saved posts — e.g. "(25) Saved
+// Posts" — rather than relying on hardcoded LinkedIn class names, which
+// change often and are why the hardcoded SELECTORS above came up empty.
+function findRepeatedGroup(expectedCount) {
+  let best = null;
+
+  document.querySelectorAll("div, ul, ol").forEach((container) => {
+    const children = Array.from(container.children);
+    if (children.length < 3) return;
+
+    const groups = new Map();
+    for (const child of children) {
+      const firstClass = (child.className || "").toString().trim().split(/\s+/)[0] || "";
+      const key = `${child.tagName}.${firstClass}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(child);
+    }
+
+    for (const [key, group] of groups) {
+      if (group.length < 3) continue;
+      const score = expectedCount ? -Math.abs(group.length - expectedCount) : group.length;
+      if (!best || score > best.score) {
+        best = { container, key, group, count: group.length, score };
+      }
+    }
+  });
+
+  return best;
+}
+
 function collectDiagnostics() {
   const lines = [];
   lines.push(`URL: ${location.href}`);
   lines.push(`Title: ${document.title}`);
 
-  const candidateSelectors = [
-    "div[data-urn]",
-    "div.reusable-search__result-container",
-    "li.reusable-search__result-container",
-    "div.feed-shared-update-v2",
-    "div.artdeco-card",
-    "li.artdeco-list__item",
-    "div.scaffold-finite-scroll__content > div",
-    "main ul > li",
-  ];
+  const expectedMatch = document.title.match(/\((\d+)\)/);
+  const expectedCount = expectedMatch ? Number(expectedMatch[1]) : null;
+  lines.push(`Expected saved-post count (from title): ${expectedCount ?? "unknown"}`);
 
-  lines.push("--- candidate selector counts ---");
-  let best = null;
-  for (const sel of candidateSelectors) {
-    const count = document.querySelectorAll(sel).length;
-    lines.push(`${sel}: ${count}`);
-    if (count > 1 && (!best || count > best.count)) best = { sel, count };
-  }
+  const group = findRepeatedGroup(expectedCount);
 
-  lines.push("--- sample element HTML (this is what I need) ---");
-  if (best) {
-    const el = document.querySelector(best.sel);
-    lines.push(`Best guess container: ${best.sel} (${best.count} matches)`);
-    lines.push(el.outerHTML.slice(0, 4000));
+  lines.push("--- repeated-group scan ---");
+  if (group) {
+    lines.push(`Found group "${group.key}" with ${group.count} siblings (closest match to expected count).`);
+    lines.push("--- sample element HTML (this is what I need) ---");
+    lines.push(group.group[0].outerHTML.slice(0, 6000));
   } else {
-    const main = document.querySelector("main");
-    lines.push("No repeated candidate found. Dumping <main> (truncated):");
-    lines.push((main ? main.outerHTML : document.body.outerHTML).slice(0, 4000));
+    lines.push("No repeated sibling group found anywhere on the page.");
+    const scroll = document.querySelector(".scaffold-finite-scroll__content");
+    lines.push("--- fallback: .scaffold-finite-scroll__content ---");
+    lines.push(scroll ? scroll.outerHTML.slice(0, 6000) : "not found");
   }
 
   return lines.join("\n");
