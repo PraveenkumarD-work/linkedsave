@@ -83,13 +83,17 @@ function scrapeVisiblePosts() {
   return { posts, skipped };
 }
 
-// Finds the most likely "list of post cards" by looking for a group of
+// Finds the most likely "list of post cards" by looking for groups of
 // sibling elements (same tag + first class) repeated roughly as many times
 // as the page title says there should be saved posts — e.g. "(25) Saved
 // Posts" — rather than relying on hardcoded LinkedIn class names, which
 // change often and are why the hardcoded SELECTORS above came up empty.
-function findRepeatedGroup(expectedCount) {
-  let best = null;
+// Skeleton/loading placeholders and text-free groups (spacers, dividers)
+// are excluded so a stuck loading state doesn't masquerade as real content.
+const NOISE_PATTERN = /skeleton|loading|placeholder|shimmer|spinner/i;
+
+function findRepeatedGroups(expectedCount, limit = 3) {
+  const candidates = [];
 
   document.querySelectorAll("div, ul, ol").forEach((container) => {
     const children = Array.from(container.children);
@@ -105,14 +109,16 @@ function findRepeatedGroup(expectedCount) {
 
     for (const [key, group] of groups) {
       if (group.length < 3) continue;
+      if (NOISE_PATTERN.test(key)) continue;
+      if (!group.some((el) => el.textContent.trim().length > 20)) continue;
+
       const score = expectedCount ? -Math.abs(group.length - expectedCount) : group.length;
-      if (!best || score > best.score) {
-        best = { container, key, group, count: group.length, score };
-      }
+      candidates.push({ key, group, count: group.length, score });
     }
   });
 
-  return best;
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates.slice(0, limit);
 }
 
 function collectDiagnostics() {
@@ -124,18 +130,22 @@ function collectDiagnostics() {
   const expectedCount = expectedMatch ? Number(expectedMatch[1]) : null;
   lines.push(`Expected saved-post count (from title): ${expectedCount ?? "unknown"}`);
 
-  const group = findRepeatedGroup(expectedCount);
+  const skeletonCount = document.querySelectorAll('[class*="skeleton" i]').length;
+  lines.push(`Skeleton/loading placeholder elements still on page: ${skeletonCount}`);
 
-  lines.push("--- repeated-group scan ---");
-  if (group) {
-    lines.push(`Found group "${group.key}" with ${group.count} siblings (closest match to expected count).`);
-    lines.push("--- sample element HTML (this is what I need) ---");
-    lines.push(group.group[0].outerHTML.slice(0, 6000));
-  } else {
-    lines.push("No repeated sibling group found anywhere on the page.");
+  const groups = findRepeatedGroups(expectedCount);
+
+  lines.push("--- repeated-group candidates (real content only, loaders excluded) ---");
+  if (groups.length === 0) {
+    lines.push("None found. The page likely hasn't finished loading real posts yet.");
     const scroll = document.querySelector(".scaffold-finite-scroll__content");
     lines.push("--- fallback: .scaffold-finite-scroll__content ---");
-    lines.push(scroll ? scroll.outerHTML.slice(0, 6000) : "not found");
+    lines.push(scroll ? scroll.outerHTML.slice(0, 4000) : "not found");
+  } else {
+    groups.forEach((g, i) => {
+      lines.push(`\n[Candidate ${i + 1}] "${g.key}" — ${g.count} siblings`);
+      lines.push(g.group[0].outerHTML.slice(0, 2500));
+    });
   }
 
   return lines.join("\n");
