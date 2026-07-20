@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "PostVault Importer",
+  "version": "0.1.0",
+  "description": "Import your LinkedIn saved posts into PostVault with one click. Manual trigger only — no background scraping.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "PostVault Importer"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/my-items/saved-posts/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": [
+    "https://postvault-clone.netlify.app/*",
+    "http://localhost:3000/*"
+  ],
+  "permissions": ["storage"]
+}
+

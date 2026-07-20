@@ -45,6 +45,25 @@ export function LibraryView({
         {showAdd && <AddPostModal />}
       </div>
 
+      {showAdd && (
+        <div className="mt-4 rounded-lg border border-dashed border-border-c bg-surface/50 px-3 py-2 text-xs text-muted">
+          Adding posts one at a time? The{" "}
+          <a
+            href="https://github.com/PraveenkumarD-work/linkedsave/tree/main/extension"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-brand hover:underline"
+          >
+            PostVault Importer Chrome extension
+          </a>{" "}
+          bulk-imports from your LinkedIn saved-posts page — generate a key in{" "}
+          <a href="/app/developer" className="font-medium text-brand hover:underline">
+            Developer API
+          </a>{" "}
+          to use it. Read its README first: it explains a real LinkedIn ToS/account-risk tradeoff.
+        </div>
+      )}
+
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <input
           value={query}

@@ -85,6 +85,13 @@ export function DeveloperView({ keys }: { keys: ApiKeyRow[] }) {
             <code className="rounded bg-surface px-1.5 py-0.5">POST /api/v1/drafts {"{ content }"}</code>
             <p className="mt-1 text-muted">Create a draft from your agent&apos;s output.</p>
           </div>
+          <div>
+            <code className="rounded bg-surface px-1.5 py-0.5">POST /api/v1/posts/import {"{ posts: [...] }"}</code>
+            <p className="mt-1 text-muted">
+              Bulk-import saved posts (used by the Chrome extension). Deduped by source URL, so
+              re-importing the same post updates it instead of duplicating.
+            </p>
+          </div>
         </div>
       </div>
     </div>
