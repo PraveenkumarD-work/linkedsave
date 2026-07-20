@@ -83,6 +83,44 @@ function scrapeVisiblePosts() {
   return { posts, skipped };
 }
 
+function collectDiagnostics() {
+  const lines = [];
+  lines.push(`URL: ${location.href}`);
+  lines.push(`Title: ${document.title}`);
+
+  const candidateSelectors = [
+    "div[data-urn]",
+    "div.reusable-search__result-container",
+    "li.reusable-search__result-container",
+    "div.feed-shared-update-v2",
+    "div.artdeco-card",
+    "li.artdeco-list__item",
+    "div.scaffold-finite-scroll__content > div",
+    "main ul > li",
+  ];
+
+  lines.push("--- candidate selector counts ---");
+  let best = null;
+  for (const sel of candidateSelectors) {
+    const count = document.querySelectorAll(sel).length;
+    lines.push(`${sel}: ${count}`);
+    if (count > 1 && (!best || count > best.count)) best = { sel, count };
+  }
+
+  lines.push("--- sample element HTML (this is what I need) ---");
+  if (best) {
+    const el = document.querySelector(best.sel);
+    lines.push(`Best guess container: ${best.sel} (${best.count} matches)`);
+    lines.push(el.outerHTML.slice(0, 4000));
+  } else {
+    const main = document.querySelector("main");
+    lines.push("No repeated candidate found. Dumping <main> (truncated):");
+    lines.push((main ? main.outerHTML : document.body.outerHTML).slice(0, 4000));
+  }
+
+  return lines.join("\n");
+}
+
 function injectButton() {
   if (document.getElementById("postvault-import-btn")) return;
 
@@ -113,11 +151,24 @@ function injectButton() {
     const { posts, skipped } = scrapeVisiblePosts();
 
     if (posts.length === 0) {
-      btn.textContent = "No posts found on this page";
+      const diagnostics = collectDiagnostics();
+      console.log("[PostVault diagnostics]\n" + diagnostics);
+
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(diagnostics);
+        copied = true;
+      } catch {
+        copied = false;
+      }
+
+      btn.textContent = copied
+        ? "No posts found — diagnostics copied, paste to Claude"
+        : "No posts found — press F12, copy Console output";
+      btn.disabled = false;
       setTimeout(() => {
         btn.textContent = "Import to PostVault";
-        btn.disabled = false;
-      }, 3000);
+      }, 8000);
       return;
     }
 
