@@ -133,6 +133,17 @@ function collectDiagnostics() {
   const skeletonCount = document.querySelectorAll('[class*="skeleton" i]').length;
   lines.push(`Skeleton/loading placeholder elements still on page: ${skeletonCount}`);
 
+  // data-chameleon-result-urn is a stable data attribute (unlike LinkedIn's
+  // rotating hashed class names) that marks each saved-post card directly —
+  // found via the generic scan last round. Prioritize a full dump of it.
+  const urnEls = document.querySelectorAll("[data-chameleon-result-urn]");
+  if (urnEls.length > 0) {
+    lines.push(`--- [data-chameleon-result-urn] found: ${urnEls.length} matches ---`);
+    lines.push("--- full HTML of first match (this is what I need) ---");
+    lines.push(urnEls[0].outerHTML.slice(0, 20000));
+    return lines.join("\n");
+  }
+
   const groups = findRepeatedGroups(expectedCount);
 
   lines.push("--- repeated-group candidates (real content only, loaders excluded) ---");
